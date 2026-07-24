@@ -1,1 +1,1 @@
-# HoopsAI - Plataforma de analisis de baloncesto con IA
+# HoopsMix- Plataforma de analisis de baloncesto con IA
