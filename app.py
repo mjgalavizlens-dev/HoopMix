@@ -1,6 +1,22 @@
 import streamlit as st
-import cv2
+import sys
+import subprocess
+# Si OpenCV falla por falta de librerías en Linux, forzamos la versión compatible
+try:
+    import cv2
+except ImportError:
+    # Desinstala las versiones que chocan con el servidor
+    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "opencv-python", "opencv-contrib-python"])
+    # Instala la versión que funciona sin interfaz gráfica
+    subprocess.run([sys.executable, "-m", "pip", "install", "opencv-python-headless"])
+    
+    # Limpia la memoria caché de Python y vuelve a intentar cargarlo
+    if "cv2" in sys.modules:
+        del sys.modules["cv2"]
+    import cv2
+
 import mediapipe as mp
+import streamlit as st
 import numpy as np
 import tempfile
 
