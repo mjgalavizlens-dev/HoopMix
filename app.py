@@ -15,7 +15,7 @@ modo_analisis = st.sidebar.radio(
     ["Solo Mecánica de Tiro", "Solo Salto Vertical", "Tiro en Suspensión (Ambos)"]
 )
 
-# Inicializar MediaPipe
+# Inicializar MediaPipe (ahora 'mp' ya está importado arriba)
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
@@ -39,17 +39,17 @@ if video_file is not None:
     tfile.write(video_file.read())
     cap = cv2.VideoCapture(tfile.name)
 
-    # Preparar la barra de progreso
+    # Preparar la barra de progreso optimizada
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     progress_bar = st.progress(0)
     status_text = st.empty()
     status_text.text("Procesando biomecánica... 0%")
 
     # Variables de métricas
-    min_angulo_codo = 180.0  # Para el Set Point
-    max_angulo_codo = 0.0    # Para el Follow-through
-    y_tobillo_mas_bajo = 0.0 # Para calcular el despegue
-    y_tobillo_mas_alto = 1.0 # (En OpenCV, 0 es arriba, 1 es abajo en coordenadas normalizadas)
+    min_angulo_codo = 180.0  
+    max_angulo_codo = 0.0    
+    y_tobillo_mas_bajo = 0.0 
+    y_tobillo_mas_alto = 1.0 
 
     frame_count = 0
 
@@ -61,17 +61,17 @@ if video_file is not None:
             
             frame_count += 1
 
-            # Actualizar la barra de progreso en la pantalla
+            # Actualizar la barra de progreso
             if frame_count % 5 == 0 and total_frames > 0:
                 progreso = min(frame_count / total_frames, 1.0)
                 progress_bar.progress(progreso)
                 status_text.text(f"Procesando biomecánica... {int(progreso * 100)}%")
 
-            # OPTIMIZACIÓN: Procesar 1 de cada 2 fotogramas (El doble de rápido)
+            # Optimización: Procesar 1 de cada 2 fotogramas para ir el doble de rápido
             if frame_count % 2 != 0:
                 continue
 
-            # Redimensionar para procesar más rápido
+            # Redimensionar para aligerar el procesado
             frame = cv2.resize(frame, (480, int(frame.shape[0] * (480 / frame.shape[1]))))
             image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = pose.process(image_rgb)
@@ -100,12 +100,12 @@ if video_file is not None:
 
     cap.release()
     
-    # Limpiar barra de progreso y mostrar éxito
+    # Limpiar barra de progreso
     progress_bar.empty()
     status_text.empty()
     st.success("✅ Análisis completado en tiempo récord.")
 
-    # 4. Mostrar Resultados Realistas
+    # 4. Mostrar Resultados
     if modo_analisis in ["Solo Mecánica de Tiro", "Tiro en Suspensión (Ambos)"]:
         st.subheader("🎯 Diagnóstico de Tiro (Brazo Derecho)")
         col1, col2 = st.columns(2)
