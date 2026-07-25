@@ -1,5 +1,10 @@
 import cv2
 import mediapipe as mp
+
+# IMPORTACIÓN EXPLÍCITA Y DIRECTA (A prueba de fallos en el servidor)
+from mediapipe.python.solutions import drawing_utils as mp_drawing
+from mediapipe.python.solutions import pose as mp_pose_module
+
 import streamlit as st
 import numpy as np
 import tempfile
@@ -14,10 +19,6 @@ modo_analisis = st.sidebar.radio(
     "¿Qué quieres analizar en este vídeo?",
     ["Solo Mecánica de Tiro", "Solo Salto Vertical", "Tiro en Suspensión (Ambos)"]
 )
-
-# Inicialización oficial de MediaPipe
-mp_drawing = mp.solutions.drawing_utils
-mp_pose = mp.solutions.pose
 
 # Función para calcular ángulos
 def calcular_angulo(a, b, c):
@@ -39,11 +40,11 @@ if video_file is not None:
     tfile.write(video_file.read())
     cap = cv2.VideoCapture(tfile.name)
 
-    # Preparar la barra de progreso optimizada
+    # Preparar la barra de progreso de forma segura para la web
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     progress_bar = st.progress(0)
     status_text = st.empty()
-    status_text.text("Procesando biomecánica... 0%")
+    status_text.info("Procesando biomecánica... 0%")
 
     # Variables de métricas
     min_angulo_codo = 180.0  
@@ -53,7 +54,7 @@ if video_file is not None:
 
     frame_count = 0
 
-    with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+    with mp_pose_module.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
@@ -65,7 +66,7 @@ if video_file is not None:
             if frame_count % 5 == 0 and total_frames > 0:
                 progreso = min(frame_count / total_frames, 1.0)
                 progress_bar.progress(progreso)
-                status_text.text(f"Procesando biomecánica... {int(progreso * 100)}%")
+                status_text.info(f"Procesando biomecánica... {int(progreso * 100)}%")
 
             # Optimización: Procesar 1 de cada 2 fotogramas para ir el doble de rápido
             if frame_count % 2 != 0:
@@ -81,12 +82,12 @@ if video_file is not None:
 
                 # --- ANÁLISIS DE TIRO ---
                 if modo_analisis in ["Solo Mecánica de Tiro", "Tiro en Suspensión (Ambos)"]:
-                    hombro = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x, 
-                              landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
-                    codo = [landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x, 
-                            landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y]
-                    muneca = [landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x, 
-                              landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y]
+                    hombro = [landmarks[mp_pose_module.PoseLandmark.RIGHT_SHOULDER.value].x, 
+                              landmarks[mp_pose_module.PoseLandmark.RIGHT_SHOULDER.value].y]
+                    codo = [landmarks[mp_pose_module.PoseLandmark.RIGHT_ELBOW.value].x, 
+                            landmarks[mp_pose_module.PoseLandmark.RIGHT_ELBOW.value].y]
+                    muneca = [landmarks[mp_pose_module.PoseLandmark.RIGHT_WRIST.value].x, 
+                              landmarks[mp_pose_module.PoseLandmark.RIGHT_WRIST.value].y]
                     
                     angulo_codo = calcular_angulo(hombro, codo, muneca)
                     min_angulo_codo = min(min_angulo_codo, angulo_codo)
@@ -94,16 +95,18 @@ if video_file is not None:
 
                 # --- ANÁLISIS DE SALTO ---
                 if modo_analisis in ["Solo Salto Vertical", "Tiro en Suspensión (Ambos)"]:
-                    tobillo_y = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y
+                    tobillo_y = landmarks[mp_pose_module.PoseLandmark.RIGHT_ANKLE.value].y
                     y_tobillo_mas_bajo = max(y_tobillo_mas_bajo, tobillo_y)
                     y_tobillo_mas_alto = min(y_tobillo_mas_alto, tobillo_y)
 
     cap.release()
     
-    # Limpiar barra de progreso
-    progress_bar.empty()
-    status_text.empty()
-    st.success("✅ Análisis completado en tiempo récord.")
+    # --- LA SOLUCIÓN AL ERROR JAVASCRIPT ---
+    # En vez de destruir los contenedores (lo que causaba el fallo removeChild), 
+    # los actualizamos de forma segura indicando que hemos terminado al 100%.
+    progress_bar.progress(1.0)
+    status_text.success("✅ Análisis completado en tiempo récord.")
+    # ----------------------------------------
 
     # 4. Mostrar Resultados
     if modo_analisis in ["Solo Mecánica de Tiro", "Tiro en Suspensión (Ambos)"]:
