@@ -1,10 +1,5 @@
 import cv2
 import mediapipe as mp
-
-# IMPORTACIÓN EXPLÍCITA Y DIRECTA (A prueba de fallos en el servidor)
-from mediapipe.python.solutions import drawing_utils as mp_drawing
-from mediapipe.python.solutions import pose as mp_pose_module
-
 import streamlit as st
 import numpy as np
 import tempfile
@@ -19,6 +14,10 @@ modo_analisis = st.sidebar.radio(
     "¿Qué quieres analizar en este vídeo?",
     ["Solo Mecánica de Tiro", "Solo Salto Vertical", "Tiro en Suspensión (Ambos)"]
 )
+
+# Inicialización oficial de MediaPipe
+mp_drawing = mp.solutions.drawing_utils
+mp_pose = mp.solutions.pose
 
 # Función para calcular ángulos
 def calcular_angulo(a, b, c):
@@ -54,7 +53,7 @@ if video_file is not None:
 
     frame_count = 0
 
-    with mp_pose_module.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+    with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
@@ -82,12 +81,12 @@ if video_file is not None:
 
                 # --- ANÁLISIS DE TIRO ---
                 if modo_analisis in ["Solo Mecánica de Tiro", "Tiro en Suspensión (Ambos)"]:
-                    hombro = [landmarks[mp_pose_module.PoseLandmark.RIGHT_SHOULDER.value].x, 
-                              landmarks[mp_pose_module.PoseLandmark.RIGHT_SHOULDER.value].y]
-                    codo = [landmarks[mp_pose_module.PoseLandmark.RIGHT_ELBOW.value].x, 
-                            landmarks[mp_pose_module.PoseLandmark.RIGHT_ELBOW.value].y]
-                    muneca = [landmarks[mp_pose_module.PoseLandmark.RIGHT_WRIST.value].x, 
-                              landmarks[mp_pose_module.PoseLandmark.RIGHT_WRIST.value].y]
+                    hombro = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x, 
+                              landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
+                    codo = [landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x, 
+                            landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].y]
+                    muneca = [landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x, 
+                              landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y]
                     
                     angulo_codo = calcular_angulo(hombro, codo, muneca)
                     min_angulo_codo = min(min_angulo_codo, angulo_codo)
@@ -95,7 +94,7 @@ if video_file is not None:
 
                 # --- ANÁLISIS DE SALTO ---
                 if modo_analisis in ["Solo Salto Vertical", "Tiro en Suspensión (Ambos)"]:
-                    tobillo_y = landmarks[mp_pose_module.PoseLandmark.RIGHT_ANKLE.value].y
+                    tobillo_y = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y
                     y_tobillo_mas_bajo = max(y_tobillo_mas_bajo, tobillo_y)
                     y_tobillo_mas_alto = min(y_tobillo_mas_alto, tobillo_y)
 
