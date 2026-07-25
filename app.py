@@ -1,25 +1,6 @@
-import sys
-import subprocess
-import streamlit as st
-
-# --- AUTO-REPARADOR DE LIBRERÍAS ---
-try:
-    import cv2
-except ImportError:
-    st.warning("⚙️ El servidor está configurando el motor de vídeo de HoopsAI. No cierres la ventana, esto tardará unos 15 segundos...")
-    
-    # 1. Matamos TODAS las versiones de OpenCV que estén chocando
-    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "opencv-python", "opencv-contrib-python", "opencv-python-headless"])
-    
-    # 2. Instalamos SOLO la versión limpia que funciona en servidores web
-    subprocess.run([sys.executable, "-m", "pip", "install", "opencv-python-headless"])
-    
-    # 3. Reiniciamos la app automáticamente
-    st.rerun()
-# -----------------------------------
-
 import cv2
 import mediapipe as mp
+import streamlit as st
 import numpy as np
 import tempfile
 
@@ -34,7 +15,7 @@ modo_analisis = st.sidebar.radio(
     ["Solo Mecánica de Tiro", "Solo Salto Vertical", "Tiro en Suspensión (Ambos)"]
 )
 
-# Inicializar MediaPipe
+# Inicializar MediaPipe (Corregido, sin la 'ç')
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
@@ -53,6 +34,7 @@ def calcular_angulo(a, b, c):
 video_file = st.file_uploader("Sube tu vídeo (mp4, mov)", type=["mp4", "mov"])
 
 if video_file is not None:
+    # Guardar video temporalmente
     tfile = tempfile.NamedTemporaryFile(delete=False)
     tfile.write(video_file.read())
     cap = cv2.VideoCapture(tfile.name)
@@ -60,10 +42,11 @@ if video_file is not None:
     st.text("Procesando vídeo... esto puede tardar unos segundos.")
     frame_placeholder = st.empty()
 
-    min_angulo_codo = 180.0
-    max_angulo_codo = 0.0
-    y_tobillo_mas_bajo = 0.0
-    y_tobillo_mas_alto = 1.0
+    # Variables de métricas
+    min_angulo_codo = 180.0  # Para el Set Point
+    max_angulo_codo = 0.0    # Para el Follow-through
+    y_tobillo_mas_bajo = 0.0 # Para calcular el despegue
+    y_tobillo_mas_alto = 1.0 # (En OpenCV, 0 es arriba, 1 es abajo en coordenadas normalizadas)
 
     with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
         while cap.isOpened():
@@ -71,6 +54,7 @@ if video_file is not None:
             if not ret:
                 break
 
+            # Redimensionar para procesar más rápido
             frame = cv2.resize(frame, (640, int(frame.shape[0] * (640 / frame.shape[1]))))
             image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = pose.process(image_rgb)
@@ -78,6 +62,7 @@ if video_file is not None:
             if results.pose_landmarks:
                 landmarks = results.pose_landmarks.landmark
 
+                # --- ANÁLISIS DE TIRO ---
                 if modo_analisis in ["Solo Mecánica de Tiro", "Tiro en Suspensión (Ambos)"]:
                     hombro = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x, 
                               landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
@@ -90,17 +75,21 @@ if video_file is not None:
                     min_angulo_codo = min(min_angulo_codo, angulo_codo)
                     max_angulo_codo = max(max_angulo_codo, angulo_codo)
 
+                # --- ANÁLISIS DE SALTO ---
                 if modo_analisis in ["Solo Salto Vertical", "Tiro en Suspensión (Ambos)"]:
                     tobillo_y = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y
                     y_tobillo_mas_bajo = max(y_tobillo_mas_bajo, tobillo_y)
                     y_tobillo_mas_alto = min(y_tobillo_mas_alto, tobillo_y)
 
+                # Dibujar esqueleto
                 mp_drawing.draw_landmarks(image_rgb, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
+            # Mostrar frame
             frame_placeholder.image(image_rgb, channels="RGB")
 
     cap.release()
 
+    # 4. Mostrar Resultados Realistas
     st.success("Análisis completado.")
 
     if modo_analisis in ["Solo Mecánica de Tiro", "Tiro en Suspensión (Ambos)"]:
