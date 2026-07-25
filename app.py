@@ -1,20 +1,4 @@
-import streamlit as st
-import sys
-import subprocess
-# Si OpenCV falla por falta de librerías en Linux, forzamos la versión compatible
-try:
-    import cv2
-except ImportError:
-    # Desinstala las versiones que chocan con el servidor
-    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "opencv-python", "opencv-contrib-python"])
-    # Instala la versión que funciona sin interfaz gráfica
-    subprocess.run([sys.executable, "-m", "pip", "install", "opencv-python-headless"])
-    
-    # Limpia la memoria caché de Python y vuelve a intentar cargarlo
-    if "cv2" in sys.modules:
-        del sys.modules["cv2"]
-    import cv2
-
+import cv2
 import mediapipe as mp
 import streamlit as st
 import numpy as np
@@ -94,10 +78,10 @@ if video_file is not None:
                 # --- ANÁLISIS DE SALTO ---
                 if modo_analisis in ["Solo Salto Vertical", "Tiro en Suspensión (Ambos)"]:
                     tobillo_y = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y
-                    y_tobillo_mas_bajo = max(y_tobillo_mas_bajo, tobillo_y) # max en Y es más cerca del suelo
-                    y_tobillo_mas_alto = min(y_tobillo_mas_alto, tobillo_y) # min en Y es más alto en el aire
+                    y_tobillo_mas_bajo = max(y_tobillo_mas_bajo, tobillo_y)
+                    y_tobillo_mas_alto = min(y_tobillo_mas_alto, tobillo_y)
 
-                # Dibujar esqueleto (limpio, sin saturar de datos en pantalla)
+                # Dibujar esqueleto
                 mp_drawing.draw_landmarks(image_rgb, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
             # Mostrar frame
@@ -130,11 +114,9 @@ if video_file is not None:
 
     if modo_analisis in ["Solo Salto Vertical", "Tiro en Suspensión (Ambos)"]:
         st.subheader("🚀 Diagnóstico de Salto")
-        # Cálculo básico heurístico basado en el desplazamiento del tobillo (Y normalizada)
         diferencia_y = y_tobillo_mas_bajo - y_tobillo_mas_alto
         
         if diferencia_y > 0.05:
-            # Estimación muy aproximada para dar un dato base (requiere calibración en un entorno real)
             altura_estimada_cm = int(diferencia_y * 150)
             st.metric(label="Altura relativa estimada", value=f"~{altura_estimada_cm} cm")
             if altura_estimada_cm > 40:
